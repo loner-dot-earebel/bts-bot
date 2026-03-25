@@ -1,14 +1,16 @@
-import pandas as pd
+import requests
+from bs4 import BeautifulSoup
 
-def fetch_lineups():
-    """
-    Pulls confirmed MLB lineups.
-    Returns list of confirmed player names.
-    """
-    # Replace with real API calls from MLB or Rotogrinders/Rotowire
-    return ["Freddie Freeman","Luis Arraez","Mookie Betts"]
+def get_confirmed_lineups():
+    url = "https://www.rotogrinders.com/lineups/mlb"  # example
+    r = requests.get(url)
+    soup = BeautifulSoup(r.text, "html.parser")
+    confirmed_players = []
+    for player_tag in soup.select(".player-name"):
+        confirmed_players.append(player_tag.text.strip())
+    return confirmed_players
 
 def filter_confirmed(df):
-    confirmed = fetch_lineups()
-    df = df[df['player'].isin(confirmed)]
+    starters = get_confirmed_lineups()
+    df = df[df['player'].isin(starters)]
     return df
