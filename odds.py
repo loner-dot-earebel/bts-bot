@@ -1,23 +1,86 @@
+# odds.py
+
 import requests
 import pandas as pd
-from bs4 import BeautifulSoup
+
+API_KEY = "2791974d9a5a94e996e61dd454eb198be23dd9adeaeede1323f39ea58502325a"
+
+# Only two books (free-tier limit)
+BOOKMAKERS = "DraftKings,FanDuel"
+
+
+def implied_prob(decimal_odds):
+    """Convert decimal odds to probability."""
+    return 1 / float(decimal_odds)
+
 
 def fetch_odds():
-    """Scrape or fetch MLB player prop odds for hits."""
-    url = "https://www.oddsjam.com/mlb/player-props/hits"  # example, adjust
-    r = requests.get(url)
-    soup = BeautifulSoup(r.text, "html.parser")
+    """
+    Pull MLB player hit props from Odds-API.io.
+    Returns a dataframe:
+    player | game_id | prob
+    """
 
-    players = []
-    # Example parsing logic, depends on site structure
-    for row in soup.select(".player-row"):
-        player = row.select_one(".player-name").text.strip()
-        team = row.select_one(".team").text.strip()
-        odds_text = row.select_one(".odds").text.strip()
-        odds = [float(x) for x in odds_text.split("/")]  # convert to decimal or implied
-        players.append({"player": player, "team": team, "odds_list": odds})
+    url = "https://api.odds-api.io/v3/odds"
 
-    df = pd.DataFrame(players)
-    # Devig and average odds across books
-    df['avg_prob'] = df['odds_list'].apply(lambda x: sum([1/odd for odd in x])/len(x))
-    return df[['player','team','avg_prob']]
+    params = {
+        "apiKey": API_KEY,
+        "sport": "mlb",
+        "bookmakers": BOOKMAKERS
+    }
+
+    response = requests.get(url, params=params)
+    response.raise_for_status()
+    data = response.json()
+
+    rows = []
+
+    for event in data:
+
+        game_id = event.get("id")
+
+        # Example format from the official docs:
+        # data["bookmakers"]["DraftKings"] -> list of markets
+        bookmakers = event.get("bookmakers", {})
+
+        for book_name, markets in bookmakers.items():
+
+            for market in markets:
+
+                # We only want "Player Props - Hits"
+                if "Hits" not in market.get("name", ""):
+                    continue
+
+                for player in market.get("odds", []):
+
+                    name = player.get("label")
+                    line = player.get("hdp")
+                    over_odds = player.get("over")
+
+                    # We only want OVER 0.5 hits
+                    if line != 0.5:
+                        continue
+
+                    rows.append({
+                        "player": name,
+                        "game_id": game_id,
+                        "book": book_name,
+                        "prob": implied_prob(over_odds)
+                    })
+
+    df = pd.DataFrame(rows)
+
+    if df.empty:
+        print("No hit props found")
+        return df
+
+    # Average across the 2 books
+    df = (
+        df.groupby(["player", "game_id"])["prob"]
+        .mean()
+        .reset_index()
+    )
+
+    df = df.sort_values("prob", ascending=False)
+
+    return df
