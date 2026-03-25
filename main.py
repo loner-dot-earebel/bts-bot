@@ -6,8 +6,13 @@ from ranking import rank_top_hitters
 from notifier import send_alert
 from tiebreaker import resolve_ties
 import pandas as pd
+import os
+
 
 def main():
+    # Step 0: ensure data folder exists
+    os.makedirs("data", exist_ok=True)
+
     # Step 1: Pull odds from multiple sportsbooks
     df = fetch_odds()
     df = devig_and_average(df)
