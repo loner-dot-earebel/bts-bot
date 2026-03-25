@@ -1,31 +1,23 @@
 import requests
 import pandas as pd
+from bs4 import BeautifulSoup
 
 def fetch_odds():
-    """
-    Pulls MLB player hit >0.5 props from multiple free sportsbooks.
-    Returns dataframe: player, team, game_id, decimal_odds_list
-    """
-    # Example structure: you would replace URLs with real free APIs
-    # For demo, we use placeholder data
-    data = [
-        {"player": "Freddie Freeman", "team": "LAD", "game_id": 1, "odds_list": [1.25,1.24,1.26]},
-        {"player": "Luis Arraez", "team": "MIN", "game_id": 2, "odds_list": [1.28,1.30,1.29]},
-        {"player": "Mookie Betts", "team": "LAD", "game_id": 1, "odds_list": [1.27,1.28,1.26]},
-    ]
-    df = pd.DataFrame(data)
-    return df
+    """Scrape or fetch MLB player prop odds for hits."""
+    url = "https://www.oddsjam.com/mlb/player-props/hits"  # example, adjust
+    r = requests.get(url)
+    soup = BeautifulSoup(r.text, "html.parser")
 
-def devig_and_average(df):
-    """
-    Converts decimal odds → implied probability, removes vig, and averages across sources
-    """
-    def devig(odds_list):
-        probs = [1/od for od in odds_list]
-        total = sum(probs)
-        # devig: scale so sum=1
-        probs = [p/total for p in probs]
-        return sum(probs)/len(probs)
-    
-    df['avg_prob'] = df['odds_list'].apply(devig)
-    return df[['player','team','game_id','avg_prob']]
+    players = []
+    # Example parsing logic, depends on site structure
+    for row in soup.select(".player-row"):
+        player = row.select_one(".player-name").text.strip()
+        team = row.select_one(".team").text.strip()
+        odds_text = row.select_one(".odds").text.strip()
+        odds = [float(x) for x in odds_text.split("/")]  # convert to decimal or implied
+        players.append({"player": player, "team": team, "odds_list": odds})
+
+    df = pd.DataFrame(players)
+    # Devig and average odds across books
+    df['avg_prob'] = df['odds_list'].apply(lambda x: sum([1/odd for odd in x])/len(x))
+    return df[['player','team','avg_prob']]
