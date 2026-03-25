@@ -1,7 +1,7 @@
 import requests
 
 TELEGRAM_BOT_TOKEN = "8639278401:AAGM9aj28jl9qPO9nvkGBLc6AnhawuYZuxk"
-CHAT_ID = "YOUR_CHAT_ID"
+CHAT_ID = "8674257644"
 
 def send_alert(top_hitters):
     if top_hitters.empty:
