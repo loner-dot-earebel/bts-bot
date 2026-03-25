@@ -25,8 +25,10 @@ def fetch_odds():
 
     params = {
         "apiKey": API_KEY,
-        "sport": "mlb",
-        "bookmakers": BOOKMAKERS
+        "sport": "baseball_mlb",
+        "bookmakers": BOOKMAKERS,
+        "regions": "us",
+        "markets": "playerProps"
     }
 
     response = requests.get(url, params=params)
